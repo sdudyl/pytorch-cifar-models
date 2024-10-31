@@ -1,74 +1,3 @@
-'''
-Modified from https://raw.githubusercontent.com/pytorch/vision/v0.9.1/torchvision/models/resnet.py
-
-BSD 3-Clause License
-
-Copyright (c) Soumith Chintala 2016,
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-
-* Neither the name of the copyright holder nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-'''
-import sys
-import torch.nn as nn
-try:
-    from torch.hub import load_state_dict_from_url
-except ImportError:
-    from torch.utils.model_zoo import load_url as load_state_dict_from_url
-
-from functools import partial
-from typing import Dict, Type, Any, Callable, Union, List, Optional
-
-
-cifar10_pretrained_weight_urls = {
-    'resnet20': 'https://github.com/chenyaofo/pytorch-cifar-models/releases/download/resnet/cifar10_resnet20-4118986f.pt',
-    'resnet32': 'https://github.com/chenyaofo/pytorch-cifar-models/releases/download/resnet/cifar10_resnet32-ef93fc4d.pt',
-    'resnet44': 'https://github.com/chenyaofo/pytorch-cifar-models/releases/download/resnet/cifar10_resnet44-2a3cabcb.pt',
-    'resnet56': 'https://github.com/chenyaofo/pytorch-cifar-models/releases/download/resnet/cifar10_resnet56-187c023a.pt',
-}
-
-cifar100_pretrained_weight_urls = {
-    'resnet20': 'https://github.com/chenyaofo/pytorch-cifar-models/releases/download/resnet/cifar100_resnet20-23dac2f1.pt',
-    'resnet32': 'https://github.com/chenyaofo/pytorch-cifar-models/releases/download/resnet/cifar100_resnet32-84213ce6.pt',
-    'resnet44': 'https://github.com/chenyaofo/pytorch-cifar-models/releases/download/resnet/cifar100_resnet44-ffe32858.pt',
-    'resnet56': 'https://github.com/chenyaofo/pytorch-cifar-models/releases/download/resnet/cifar100_resnet56-f2eff4c8.pt',
-}
-
-
-def conv3x3(in_planes, out_planes, stride=1):
-    """3x3 convolution with padding"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
-
-
-def conv1x1(in_planes, out_planes, stride=1):
-    """1x1 convolution"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
-
-
-write_count = 0  # 初始化全局变量
-
 class BasicBlock(nn.Module):
     expansion = 1
 
@@ -82,30 +11,27 @@ class BasicBlock(nn.Module):
         self.downsample = downsample
         self.stride = stride
 
-
-    
-    def forward(self, x):
+    def forward(self, x, layer_name=None, block_index=None):
         global write_count  # 在方法中声明为全局变量
 
         identity = x
-        #print("Precision:21222222222222222222222222222")
         out = self.conv1(x)
         out = self.bn1(out)
 
-         # 增加计数器并生成新的文件名
+        # 增加计数器并生成新的文件名，包含层和块的信息
         write_count += 1
-        filename = f"data{write_count}.txt"
+        filename = f"{layer_name}_block{block_index}_data{write_count}.txt"
         # 将结果写入新文件，以逗号分隔，保留三位小数
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
         out = self.relu(out)
-
         out = self.conv2(out)
         out = self.bn2(out)
-        # 增加计数器并生成新的文件名
+
+        # 增加计数器并生成新的文件名，包含层和块的信息
         write_count += 1
-        filename = f"data{write_count}.txt"
+        filename = f"{layer_name}_block{block_index}_data{write_count}.txt"
         # 将结果写入新文件，以逗号分隔，保留三位小数
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
@@ -153,7 +79,7 @@ class CifarResNet(nn.Module):
         layers = []
         layers.append(block(self.inplanes, planes, stride, downsample))
         self.inplanes = planes * block.expansion
-        for _ in range(1, blocks):
+        for i in range(1, blocks):
             layers.append(block(self.inplanes, planes))
 
         return nn.Sequential(*layers)
@@ -163,58 +89,16 @@ class CifarResNet(nn.Module):
         x = self.bn1(x)
         x = self.relu(x)
 
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
+        # 执行第一个 block，传递层和块的索引
+        for i, block in enumerate(self.layer1):
+            x = block(x, "layer1", i + 1)  # layer1的block索引从1开始
+        for i, block in enumerate(self.layer2):
+            x = block(x, "layer2", i + 1)  # layer2的block索引从1开始
+        for i, block in enumerate(self.layer3):
+            x = block(x, "layer3", i + 1)  # layer3的block索引从1开始
 
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
 
         return x
-
-
-def _resnet(
-    arch: str,
-    layers: List[int],
-    model_urls: Dict[str, str],
-    progress: bool = True,
-    pretrained: bool = False,
-    **kwargs: Any
-) -> CifarResNet:
-    model = CifarResNet(BasicBlock, layers, **kwargs)
-    if pretrained:
-        state_dict = load_state_dict_from_url(model_urls[arch],
-                                              progress=progress)
-        model.load_state_dict(state_dict)
-    return model
-
-
-def cifar10_resnet20(*args, **kwargs) -> CifarResNet: pass
-def cifar10_resnet32(*args, **kwargs) -> CifarResNet: pass
-def cifar10_resnet44(*args, **kwargs) -> CifarResNet: pass
-def cifar10_resnet56(*args, **kwargs) -> CifarResNet: pass
-
-
-def cifar100_resnet20(*args, **kwargs) -> CifarResNet: pass
-def cifar100_resnet32(*args, **kwargs) -> CifarResNet: pass
-def cifar100_resnet44(*args, **kwargs) -> CifarResNet: pass
-def cifar100_resnet56(*args, **kwargs) -> CifarResNet: pass
-
-
-thismodule = sys.modules[__name__]
-for dataset in ["cifar10", "cifar100"]:
-    for layers, model_name in zip([[3]*3, [5]*3, [7]*3, [9]*3],
-                                  ["resnet20", "resnet32", "resnet44", "resnet56"]):
-        method_name = f"{dataset}_{model_name}"
-        model_urls = cifar10_pretrained_weight_urls if dataset == "cifar10" else cifar100_pretrained_weight_urls
-        num_classes = 10 if dataset == "cifar10" else 100
-        setattr(
-            thismodule,
-            method_name,
-            partial(_resnet,
-                    arch=model_name,
-                    layers=layers,
-                    model_urls=model_urls,
-                    num_classes=num_classes)
-        )
