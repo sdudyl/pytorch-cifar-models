@@ -82,7 +82,7 @@ class BasicBlock(nn.Module):
 
     def forward(self, x):
         identity = x
-
+        print("Precision:21222222222222222222222222222")
         out = self.conv1(x)
         out = self.bn1(out)
         out = self.relu(out)
