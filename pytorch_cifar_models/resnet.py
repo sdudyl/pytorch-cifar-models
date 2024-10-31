@@ -67,6 +67,8 @@ def conv1x1(in_planes, out_planes, stride=1):
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
 
+write_count = 0  # 初始化全局变量
+
 class BasicBlock(nn.Module):
     expansion = 1
 
@@ -80,15 +82,33 @@ class BasicBlock(nn.Module):
         self.downsample = downsample
         self.stride = stride
 
+
+    
     def forward(self, x):
+        global write_count  # 在方法中声明为全局变量
+
         identity = x
-        print("Precision:21222222222222222222222222222")
+        #print("Precision:21222222222222222222222222222")
         out = self.conv1(x)
         out = self.bn1(out)
+
+         # 增加计数器并生成新的文件名
+        write_count += 1
+        filename = f"data{write_count}.txt"
+        # 将结果写入新文件，以逗号分隔，保留三位小数
+        with open(filename, "w") as f:
+            f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
+
         out = self.relu(out)
 
         out = self.conv2(out)
         out = self.bn2(out)
+        # 增加计数器并生成新的文件名
+        write_count += 1
+        filename = f"data{write_count}.txt"
+        # 将结果写入新文件，以逗号分隔，保留三位小数
+        with open(filename, "w") as f:
+            f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
         if self.downsample is not None:
             identity = self.downsample(x)
