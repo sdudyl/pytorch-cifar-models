@@ -68,6 +68,7 @@ def conv1x1(in_planes, out_planes, stride=1):
 
 
 write_count = 0  # 初始化全局变量
+relu_count = 0  # 初始化全局变量
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -88,6 +89,7 @@ class BasicBlock(nn.Module):
 
     def forward(self, x):
         global write_count
+        global relu_count
 
         identity = x
         out = self.conv1(x)
@@ -100,6 +102,14 @@ class BasicBlock(nn.Module):
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
         out = self.relu(out)
+        relu_count += 1
+        filename = f"{self.layer_num}_{self.block_num}_{relu_count}_relu.txt"
+        with open(filename, "w") as f:
+            f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
+
+
+
+
         out = self.conv2(out)
         out = self.bn2(out)
 
@@ -114,6 +124,11 @@ class BasicBlock(nn.Module):
 
         out += identity
         out = self.relu(out)
+        relu_count += 1
+        filename = f"{self.layer_num}_{self.block_num}_{relu_count}_relu.txt"
+        with open(filename, "w") as f:
+            f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
+
 
         return out
 
