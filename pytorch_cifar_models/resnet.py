@@ -72,7 +72,7 @@ write_count = 0  # 初始化全局变量
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None):
+    def __init__(self, inplanes, planes, stride=1, downsample=None, layer_num=None, block_num=None):
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = nn.BatchNorm2d(planes)
@@ -82,8 +82,12 @@ class BasicBlock(nn.Module):
         self.downsample = downsample
         self.stride = stride
 
-    def forward(self, x, layer_num=None, block_num=None):
-        global write_count  # 使用全局计数器
+        # 保存层和块编号
+        self.layer_num = layer_num
+        self.block_num = block_num
+
+    def forward(self, x):
+        global write_count
 
         identity = x
         out = self.conv1(x)
@@ -91,8 +95,7 @@ class BasicBlock(nn.Module):
 
         # 更新计数器并生成文件名：层数_块数_计数器.txt
         write_count += 1
-        filename = f"{layer_num}_{block_num}_{write_count}.txt"
-        # 将结果写入文件
+        filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
@@ -102,7 +105,7 @@ class BasicBlock(nn.Module):
 
         # 再次更新计数器并生成文件名
         write_count += 1
-        filename = f"{layer_num}_{block_num}_{write_count}.txt"
+        filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
@@ -115,6 +118,7 @@ class BasicBlock(nn.Module):
         return out
 
 
+
 class CifarResNet(nn.Module):
 
     def __init__(self, block, layers, num_classes=10):
@@ -124,9 +128,9 @@ class CifarResNet(nn.Module):
         self.bn1 = nn.BatchNorm2d(16)
         self.relu = nn.ReLU(inplace=True)
 
-        self.layer1 = self._make_layer(block, 16, layers[0])
-        self.layer2 = self._make_layer(block, 32, layers[1], stride=2)
-        self.layer3 = self._make_layer(block, 64, layers[2], stride=2)
+        self.layer1 = self._make_layer(block, 16, layers[0], layer_num=1)
+        self.layer2 = self._make_layer(block, 32, layers[1], layer_num=2, stride=2)
+        self.layer3 = self._make_layer(block, 64, layers[2], layer_num=3, stride=2)
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(64 * block.expansion, num_classes)
@@ -138,7 +142,7 @@ class CifarResNet(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
-    def _make_layer(self, block, planes, blocks, stride=1):
+    def _make_layer(self, block, planes, blocks, layer_num, stride=1):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
@@ -147,12 +151,13 @@ class CifarResNet(nn.Module):
             )
 
         layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample))
+        layers.append(block(self.inplanes, planes, stride, downsample, layer_num=layer_num, block_num=1))
         self.inplanes = planes * block.expansion
-        for _ in range(1, blocks):
-            layers.append(block(self.inplanes, planes))
+        for i in range(1, blocks):
+            layers.append(block(self.inplanes, planes, layer_num=layer_num, block_num=i + 1))
 
         return nn.Sequential(*layers)
+
 
     def forward(self, x):
         x = self.conv1(x)
