@@ -82,17 +82,17 @@ class BasicBlock(nn.Module):
         self.downsample = downsample
         self.stride = stride
 
-    def forward(self, x, layer_name=None, block_index=None):
-        global write_count  # 在方法中声明为全局变量
+    def forward(self, x, layer_num=None, block_num=None):
+        global write_count  # 使用全局计数器
 
         identity = x
         out = self.conv1(x)
         out = self.bn1(out)
 
-        # 增加计数器并生成新的文件名，包含层和块的信息
+        # 更新计数器并生成文件名：层数_块数_计数器.txt
         write_count += 1
-        filename = f"{layer_name}_block{block_index}_data{write_count}.txt"
-        # 将结果写入新文件，以逗号分隔，保留三位小数
+        filename = f"{layer_num}_{block_num}_{write_count}.txt"
+        # 将结果写入文件
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
@@ -100,10 +100,9 @@ class BasicBlock(nn.Module):
         out = self.conv2(out)
         out = self.bn2(out)
 
-        # 增加计数器并生成新的文件名，包含层和块的信息
+        # 再次更新计数器并生成文件名
         write_count += 1
-        filename = f"{layer_name}_block{block_index}_data{write_count}.txt"
-        # 将结果写入新文件，以逗号分隔，保留三位小数
+        filename = f"{layer_num}_{block_num}_{write_count}.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
@@ -150,7 +149,7 @@ class CifarResNet(nn.Module):
         layers = []
         layers.append(block(self.inplanes, planes, stride, downsample))
         self.inplanes = planes * block.expansion
-        for i in range(1, blocks):
+        for _ in range(1, blocks):
             layers.append(block(self.inplanes, planes))
 
         return nn.Sequential(*layers)
@@ -160,13 +159,13 @@ class CifarResNet(nn.Module):
         x = self.bn1(x)
         x = self.relu(x)
 
-        # 执行第一个 block，传递层和块的索引
+        # 传递层和块的索引
         for i, block in enumerate(self.layer1):
-            x = block(x, "layer1", i + 1)  # layer1的block索引从1开始
+            x = block(x, 1, i + 1)  # layer1的索引为1
         for i, block in enumerate(self.layer2):
-            x = block(x, "layer2", i + 1)  # layer2的block索引从1开始
+            x = block(x, 2, i + 1)  # layer2的索引为2
         for i, block in enumerate(self.layer3):
-            x = block(x, "layer3", i + 1)  # layer3的block索引从1开始
+            x = block(x, 3, i + 1)  # layer3的索引为3
 
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
