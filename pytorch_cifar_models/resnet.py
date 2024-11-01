@@ -174,6 +174,9 @@ class CifarResNet(nn.Module):
 
         return x
 
+
+
+
 def _resnet(
     arch: str,
     layers: List[int],
