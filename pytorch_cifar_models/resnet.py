@@ -70,9 +70,6 @@ def conv1x1(in_planes, out_planes, stride=1):
 # write_count = 0  # 初始化全局变量
 # relu_count = 0  # 初始化全局变量
 
-def reset_counters():
-    write_count = 0
-    relu_count = 0
 
 class BasicBlock(nn.Module):
     expansion = 1
