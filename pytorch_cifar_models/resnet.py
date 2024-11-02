@@ -92,8 +92,8 @@ class BasicBlock(nn.Module):
         self.relu_count = 0
 
     def forward(self, x):
-        global self.write_count
-        global self.relu_count
+        # global self.write_count
+        # global self.relu_count
 
         identity = x
         out = self.conv1(x)
