@@ -67,8 +67,9 @@ def conv1x1(in_planes, out_planes, stride=1):
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
 
-# self.write_count = 0  # 初始化全局变量
-# self.relu_count = 0  # 初始化全局变量
+write_count = 0  # 初始化全局变量
+relu_count = 0  # 初始化全局变量
+
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -88,26 +89,26 @@ class BasicBlock(nn.Module):
         self.block_num = block_num
 
          # 初始化计数器
-        self.write_count = 0
-        self.relu_count = 0
+        write_count = 0
+        relu_count = 0
 
     def forward(self, x):
-        # global self.write_count
-        # global self.relu_count
+        global write_count
+        global relu_count
 
         identity = x
         out = self.conv1(x)
         out = self.bn1(out)
 
         # 更新计数器并生成文件名：层数_块数_计数器.txt
-        self.write_count += 1
-        filename = f"{self.layer_num}_{self.block_num}_{self.write_count}.txt"
+        write_count += 1
+        filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
         out = self.relu(out)
-        self.relu_count += 1
-        filename = f"{self.layer_num}_{self.block_num}_{self.relu_count}_relu.txt"
+        relu_count += 1
+        filename = f"{self.layer_num}_{self.block_num}_{relu_count}_relu.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
@@ -118,8 +119,8 @@ class BasicBlock(nn.Module):
         out = self.bn2(out)
 
         # 再次更新计数器并生成文件名
-        self.write_count += 1
-        filename = f"{self.layer_num}_{self.block_num}_{self.write_count}.txt"
+        write_count += 1
+        filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
@@ -128,8 +129,8 @@ class BasicBlock(nn.Module):
 
         out += identity
         out = self.relu(out)
-        self.relu_count += 1
-        filename = f"{self.layer_num}_{self.block_num}_{self.relu_count}_relu.txt"
+        relu_count += 1
+        filename = f"{self.layer_num}_{self.block_num}_{relu_count}_relu.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
