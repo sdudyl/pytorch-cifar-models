@@ -74,7 +74,6 @@ class BasicBlock(nn.Module):
         self.block_num = block_num
 
     def forward(self, x):
-        
 
         identity = x
         out = self.conv1(x)
