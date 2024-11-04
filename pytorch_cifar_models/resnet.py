@@ -54,7 +54,6 @@ class Counter:
 
 
 
-counter = Counter()  # 实例化计数器
 
 
 class BasicBlock(nn.Module):
@@ -75,7 +74,7 @@ class BasicBlock(nn.Module):
         self.block_num = block_num
 
     def forward(self, x):
-        global counter
+        
 
         identity = x
         out = self.conv1(x)
