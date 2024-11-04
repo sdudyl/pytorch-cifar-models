@@ -86,13 +86,13 @@ class Counter:
         self.relu_count = 0
 
 
-counter = Counter()  # 创建计数器实例
+# counter = Counter()  # 创建计数器实例
 
 
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None, layer_num=None, block_num=None):
+    def __init__(self, inplanes, planes, stride=1, downsample=None, layer_num=None, block_num=None, counter=None):
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = nn.BatchNorm2d(planes)
@@ -101,30 +101,35 @@ class BasicBlock(nn.Module):
         self.bn2 = nn.BatchNorm2d(planes)
         self.downsample = downsample
         self.stride = stride
+
+        # 保存层和块编号
         self.layer_num = layer_num
         self.block_num = block_num
+        self.counter = counter  # 引入计数器
 
     def forward(self, x):
         identity = x
         out = self.conv1(x)
         out = self.bn1(out)
 
-        write_count = counter.increment_write()
-        filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
+        # 更新计数器并生成文件名
+        self.counter.increment_write()
+        filename = f"{self.layer_num}_{self.block_num}_{self.counter.write_count}.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
         out = self.relu(out)
-        relu_count = counter.increment_relu()
-        filename = f"{self.layer_num}_{self.block_num}_{relu_count}_relu.txt"
+        self.counter.increment_relu()
+        filename = f"{self.layer_num}_{self.block_num}_{self.counter.relu_count}_relu.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
         out = self.conv2(out)
         out = self.bn2(out)
 
-        write_count = counter.increment_write()
-        filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
+        # 再次更新计数器并生成文件名
+        self.counter.increment_write()
+        filename = f"{self.layer_num}_{self.block_num}_{self.counter.write_count}.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
@@ -133,8 +138,8 @@ class BasicBlock(nn.Module):
 
         out += identity
         out = self.relu(out)
-        relu_count = counter.increment_relu()
-        filename = f"{self.layer_num}_{self.block_num}_{relu_count}_relu.txt"
+        self.counter.increment_relu()
+        filename = f"{self.layer_num}_{self.block_num}_{self.counter.relu_count}_relu.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
@@ -197,6 +202,7 @@ class CifarResNet(nn.Module):
         x = self.fc(x)
 
         return x
+
 
 
 
