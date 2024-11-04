@@ -6,7 +6,7 @@ except ImportError:
     from torch.utils.model_zoo import load_url as load_state_dict_from_url
 
 from functools import partial
-from typing import Dict, Type, Any, Callable, Union, List, Optional
+from typing import Dict, Any, List
 
 
 cifar10_pretrained_weight_urls = {
@@ -23,12 +23,39 @@ cifar100_pretrained_weight_urls = {
     'resnet56': 'https://github.com/chenyaofo/pytorch-cifar-models/releases/download/resnet/cifar100_resnet56-f2eff4c8.pt',
 }
 
-# 定义卷积层
-def conv3x3(in_channels, out_channels, stride=1):
-    return nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
 
-def conv1x1(in_channels, out_channels, stride=1):
-    return nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=False)
+def conv3x3(in_planes, out_planes, stride=1):
+    """3x3 convolution with padding"""
+    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
+
+
+def conv1x1(in_planes, out_planes, stride=1):
+    """1x1 convolution"""
+    return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
+
+
+# 计数器类
+class Counter:
+    def __init__(self):
+        self.write_count = 0
+        self.relu_count = 0
+
+    def increment_write(self):
+        self.write_count += 1
+        return self.write_count
+
+    def increment_relu(self):
+        self.relu_count += 1
+        return self.relu_count
+
+    def reset(self):
+        self.write_count = 0
+        self.relu_count = 0
+
+
+
+counter = Counter()  # 实例化计数器
+
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -47,20 +74,22 @@ class BasicBlock(nn.Module):
         self.layer_num = layer_num
         self.block_num = block_num
 
-    def forward(self, x, model):
+    def forward(self, x):
+        global counter
+
         identity = x
         out = self.conv1(x)
         out = self.bn1(out)
 
         # 更新计数器并生成文件名：层数_块数_计数器.txt
-        model.write_count += 1
-        filename = f"{self.layer_num}_{self.block_num}_{model.write_count}.txt"
+        write_count = counter.increment_write()
+        filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
         out = self.relu(out)
-        model.relu_count += 1
-        filename = f"{self.layer_num}_{self.block_num}_{model.relu_count}_relu.txt"
+        relu_count = counter.increment_relu()
+        filename = f"{self.layer_num}_{self.block_num}_{relu_count}_relu.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
@@ -68,8 +97,8 @@ class BasicBlock(nn.Module):
         out = self.bn2(out)
 
         # 再次更新计数器并生成文件名
-        model.write_count += 1
-        filename = f"{self.layer_num}_{self.block_num}_{model.write_count}.txt"
+        write_count = counter.increment_write()
+        filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
@@ -78,14 +107,16 @@ class BasicBlock(nn.Module):
 
         out += identity
         out = self.relu(out)
-        model.relu_count += 1
-        filename = f"{self.layer_num}_{self.block_num}_{model.relu_count}_relu.txt"
+        relu_count = counter.increment_relu()
+        filename = f"{self.layer_num}_{self.block_num}_{relu_count}_relu.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
         return out
 
+
 class CifarResNet(nn.Module):
+
     def __init__(self, block, layers, num_classes=10):
         super(CifarResNet, self).__init__()
         self.inplanes = 16
@@ -99,10 +130,6 @@ class CifarResNet(nn.Module):
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(64 * block.expansion, num_classes)
-
-        # 初始化计数器
-        self.write_count = 0
-        self.relu_count = 0
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -134,17 +161,18 @@ class CifarResNet(nn.Module):
 
         # 传递层和块的索引
         for i, block in enumerate(self.layer1):
-            x = block(x, self)  # 传递模型实例
+            x = block(x, 1, i + 1)  # layer1的索引为1
         for i, block in enumerate(self.layer2):
-            x = block(x, self)  # 传递模型实例
+            x = block(x, 2, i + 1)  # layer2的索引为2
         for i, block in enumerate(self.layer3):
-            x = block(x, self)  # 传递模型实例
+            x = block(x, 3, i + 1)  # layer3的索引为3
 
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
 
         return x
+
 
 def _resnet(
     arch: str,
@@ -161,29 +189,19 @@ def _resnet(
         model.load_state_dict(state_dict)
     return model
 
+
 def cifar10_resnet20(*args, **kwargs) -> CifarResNet: pass
 def cifar10_resnet32(*args, **kwargs) -> CifarResNet: pass
 def cifar10_resnet44(*args, **kwargs) -> CifarResNet: pass
 def cifar10_resnet56(*args, **kwargs) -> CifarResNet: pass
+
 
 def cifar100_resnet20(*args, **kwargs) -> CifarResNet: pass
 def cifar100_resnet32(*args, **kwargs) -> CifarResNet: pass
 def cifar100_resnet44(*args, **kwargs) -> CifarResNet: pass
 def cifar100_resnet56(*args, **kwargs) -> CifarResNet: pass
 
+
 thismodule = sys.modules[__name__]
 for dataset in ["cifar10", "cifar100"]:
-    for layers, model_name in zip([[3]*3, [5]*3, [7]*3, [9]*3],
-                                  ["resnet20", "resnet32", "resnet44", "resnet56"]):
-        method_name = f"{dataset}_{model_name}"
-        model_urls = cifar10_pretrained_weight_urls if dataset == "cifar10" else cifar100_pretrained_weight_urls
-        num_classes = 10 if dataset == "cifar10" else 100
-        setattr(
-            thismodule,
-            method_name,
-            partial(_resnet,
-                    arch=model_name,
-                    layers=layers,
-                    model_urls=model_urls,
-                    num_classes=num_classes)
-        )
+    for layers, model_name in zip([[3]*3, [5]*
