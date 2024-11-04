@@ -137,22 +137,21 @@ class CifarResNet(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
-  def _make_layer(self, block, planes, blocks, layer_num, stride=1):
-    downsample = None
-    if stride != 1 or self.inplanes != planes * block.expansion:
-        downsample = nn.Sequential(
-            conv1x1(self.inplanes, planes * block.expansion, stride),
-            nn.BatchNorm2d(planes * block.expansion),
-        )
+    def _make_layer(self, block, planes, blocks, layer_num, stride=1):
+        downsample = None
+        if stride != 1 or self.inplanes != planes * block.expansion:
+            downsample = nn.Sequential(
+                conv1x1(self.inplanes, planes * block.expansion, stride),
+                nn.BatchNorm2d(planes * block.expansion),
+            )
 
-    layers = []
-    layers.append(block(self.inplanes, planes, stride, downsample, layer_num=layer_num, block_num=1, counter=self.counter))
-    self.inplanes = planes * block.expansion
-    for i in range(1, blocks):
-        layers.append(block(self.inplanes, planes, layer_num=layer_num, block_num=i + 1, counter=self.counter))
+        layers = []
+        layers.append(block(self.inplanes, planes, stride, downsample, layer_num=layer_num, block_num=1, counter=self.counter))
+        self.inplanes = planes * block.expansion
+        for i in range(1, blocks):
+            layers.append(block(self.inplanes, planes, layer_num=layer_num, block_num=i + 1, counter=self.counter))
 
     return nn.Sequential(*layers)
-
 
     def forward(self, x):
         x = self.conv1(x)
