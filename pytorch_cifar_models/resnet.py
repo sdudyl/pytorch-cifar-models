@@ -88,13 +88,13 @@ class BasicBlock(nn.Module):
         self.layer_num = layer_num
         self.block_num = block_num
 
-         # 初始化计数器
-        write_count = 0
-        relu_count = 0
+        #  # 初始化计数器
+        # write_count = 0
+        # relu_count = 0
 
     def forward(self, x):
-        global write_count
-        global relu_count
+        # global write_count
+        # global relu_count
 
         identity = x
         out = self.conv1(x)
@@ -154,6 +154,11 @@ class CifarResNet(nn.Module):
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(64 * block.expansion, num_classes)
+
+        # 初始化计数器
+        self.write_count = 0
+        self.relu_count = 0
+
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
