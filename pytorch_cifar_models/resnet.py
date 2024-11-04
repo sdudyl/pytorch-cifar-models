@@ -74,19 +74,18 @@ class BasicBlock(nn.Module):
         self.block_num = block_num
 
     def forward(self, x):
-
         identity = x
         out = self.conv1(x)
         out = self.bn1(out)
 
-        # 更新计数器并生成文件名：层数_块数_计数器.txt
-        write_count = counter.increment_write()
+        # 更新计数器并生成文件名
+        write_count = self.counter.increment_write()
         filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
         out = self.relu(out)
-        relu_count = counter.increment_relu()
+        relu_count = self.counter.increment_relu()
         filename = f"{self.layer_num}_{self.block_num}_{relu_count}_relu.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
@@ -95,7 +94,7 @@ class BasicBlock(nn.Module):
         out = self.bn2(out)
 
         # 再次更新计数器并生成文件名
-        write_count = counter.increment_write()
+        write_count = self.counter.increment_write()
         filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
@@ -105,7 +104,7 @@ class BasicBlock(nn.Module):
 
         out += identity
         out = self.relu(out)
-        relu_count = counter.increment_relu()
+        relu_count = self.counter.increment_relu()
         filename = f"{self.layer_num}_{self.block_num}_{relu_count}_relu.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
@@ -138,21 +137,22 @@ class CifarResNet(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
-    def _make_layer(self, block, planes, blocks, layer_num, stride=1):
-        downsample = None
-        if stride != 1 or self.inplanes != planes * block.expansion:
-            downsample = nn.Sequential(
-                conv1x1(self.inplanes, planes * block.expansion, stride),
-                nn.BatchNorm2d(planes * block.expansion),
-            )
+  def _make_layer(self, block, planes, blocks, layer_num, stride=1):
+    downsample = None
+    if stride != 1 or self.inplanes != planes * block.expansion:
+        downsample = nn.Sequential(
+            conv1x1(self.inplanes, planes * block.expansion, stride),
+            nn.BatchNorm2d(planes * block.expansion),
+        )
 
-        layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample, layer_num=layer_num, block_num=1))
-        self.inplanes = planes * block.expansion
-        for i in range(1, blocks):
-            layers.append(block(self.inplanes, planes, layer_num=layer_num, block_num=i + 1))
+    layers = []
+    layers.append(block(self.inplanes, planes, stride, downsample, layer_num=layer_num, block_num=1, counter=self.counter))
+    self.inplanes = planes * block.expansion
+    for i in range(1, blocks):
+        layers.append(block(self.inplanes, planes, layer_num=layer_num, block_num=i + 1, counter=self.counter))
 
-        return nn.Sequential(*layers)
+    return nn.Sequential(*layers)
+
 
     def forward(self, x):
         x = self.conv1(x)
