@@ -1,36 +1,3 @@
-'''
-Modified from https://raw.githubusercontent.com/pytorch/vision/v0.9.1/torchvision/models/resnet.py
-
-BSD 3-Clause License
-
-Copyright (c) Soumith Chintala 2016,
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-
-* Neither the name of the copyright holder nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-'''
 import sys
 import torch.nn as nn
 try:
@@ -56,20 +23,12 @@ cifar100_pretrained_weight_urls = {
     'resnet56': 'https://github.com/chenyaofo/pytorch-cifar-models/releases/download/resnet/cifar100_resnet56-f2eff4c8.pt',
 }
 
+# 定义卷积层
+def conv3x3(in_channels, out_channels, stride=1):
+    return nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
 
-def conv3x3(in_planes, out_planes, stride=1):
-    """3x3 convolution with padding"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
-
-
-def conv1x1(in_planes, out_planes, stride=1):
-    """1x1 convolution"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
-
-
-write_count = 0  # 初始化全局变量
-relu_count = 0  # 初始化全局变量
-
+def conv1x1(in_channels, out_channels, stride=1):
+    return nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=False)
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -88,39 +47,29 @@ class BasicBlock(nn.Module):
         self.layer_num = layer_num
         self.block_num = block_num
 
-         # 初始化计数器
-        write_count = 0
-        relu_count = 0
-
-    def forward(self, x):
-        global write_count
-        global relu_count
-
+    def forward(self, x, model):
         identity = x
         out = self.conv1(x)
         out = self.bn1(out)
 
         # 更新计数器并生成文件名：层数_块数_计数器.txt
-        write_count += 1
-        filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
+        model.write_count += 1
+        filename = f"{self.layer_num}_{self.block_num}_{model.write_count}.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
         out = self.relu(out)
-        relu_count += 1
-        filename = f"{self.layer_num}_{self.block_num}_{relu_count}_relu.txt"
+        model.relu_count += 1
+        filename = f"{self.layer_num}_{self.block_num}_{model.relu_count}_relu.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
-
-
-
 
         out = self.conv2(out)
         out = self.bn2(out)
 
         # 再次更新计数器并生成文件名
-        write_count += 1
-        filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
+        model.write_count += 1
+        filename = f"{self.layer_num}_{self.block_num}_{model.write_count}.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
@@ -129,18 +78,14 @@ class BasicBlock(nn.Module):
 
         out += identity
         out = self.relu(out)
-        relu_count += 1
-        filename = f"{self.layer_num}_{self.block_num}_{relu_count}_relu.txt"
+        model.relu_count += 1
+        filename = f"{self.layer_num}_{self.block_num}_{model.relu_count}_relu.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
-
         return out
 
-
-
 class CifarResNet(nn.Module):
-
     def __init__(self, block, layers, num_classes=10):
         super(CifarResNet, self).__init__()
         self.inplanes = 16
@@ -155,7 +100,9 @@ class CifarResNet(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(64 * block.expansion, num_classes)
 
-        
+        # 初始化计数器
+        self.write_count = 0
+        self.relu_count = 0
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -180,7 +127,6 @@ class CifarResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-
     def forward(self, x):
         x = self.conv1(x)
         x = self.bn1(x)
@@ -188,20 +134,17 @@ class CifarResNet(nn.Module):
 
         # 传递层和块的索引
         for i, block in enumerate(self.layer1):
-            x = block(x, 1, i + 1)  # layer1的索引为1
+            x = block(x, self)  # 传递模型实例
         for i, block in enumerate(self.layer2):
-            x = block(x, 2, i + 1)  # layer2的索引为2
+            x = block(x, self)  # 传递模型实例
         for i, block in enumerate(self.layer3):
-            x = block(x, 3, i + 1)  # layer3的索引为3
+            x = block(x, self)  # 传递模型实例
 
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
 
         return x
-
-
-
 
 def _resnet(
     arch: str,
@@ -218,18 +161,15 @@ def _resnet(
         model.load_state_dict(state_dict)
     return model
 
-
 def cifar10_resnet20(*args, **kwargs) -> CifarResNet: pass
 def cifar10_resnet32(*args, **kwargs) -> CifarResNet: pass
 def cifar10_resnet44(*args, **kwargs) -> CifarResNet: pass
 def cifar10_resnet56(*args, **kwargs) -> CifarResNet: pass
 
-
 def cifar100_resnet20(*args, **kwargs) -> CifarResNet: pass
 def cifar100_resnet32(*args, **kwargs) -> CifarResNet: pass
 def cifar100_resnet44(*args, **kwargs) -> CifarResNet: pass
 def cifar100_resnet56(*args, **kwargs) -> CifarResNet: pass
-
 
 thismodule = sys.modules[__name__]
 for dataset in ["cifar10", "cifar100"]:
