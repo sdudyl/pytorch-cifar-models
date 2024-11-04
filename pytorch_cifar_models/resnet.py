@@ -166,6 +166,7 @@ class CifarResNet(nn.Module):
                 nn.init.constant_(m.bias, 0)
      def reset_counter(self):
         self.dylreset()
+        return 0
 
     def _make_layer(self, block, planes, blocks, layer_num, stride=1):
         downsample = None
