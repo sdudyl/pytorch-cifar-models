@@ -67,8 +67,8 @@ def conv1x1(in_planes, out_planes, stride=1):
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
 
-# write_count = 0  # 初始化全局变量
-# relu_count = 0  # 初始化全局变量
+write_count = 0  # 初始化全局变量
+relu_count = 0  # 初始化全局变量
 
 
 class BasicBlock(nn.Module):
@@ -92,7 +92,10 @@ class BasicBlock(nn.Module):
         # write_count = 0
         # relu_count = 0
 
-     def forward(self, x, layer_num, block_num, model):
+    def forward(self, x):
+        global write_count
+        global relu_count
+
         identity = x
         out = self.conv1(x)
         out = self.bn1(out)
@@ -150,7 +153,6 @@ class CifarResNet(nn.Module):
         # 初始化计数器
         self.write_count = 0
         self.relu_count = 0
-
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
