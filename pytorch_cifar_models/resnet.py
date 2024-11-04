@@ -1,3 +1,36 @@
+'''
+Modified from https://raw.githubusercontent.com/pytorch/vision/v0.9.1/torchvision/models/resnet.py
+
+BSD 3-Clause License
+
+Copyright (c) Soumith Chintala 2016,
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of the copyright holder nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+'''
 import sys
 import torch.nn as nn
 try:
@@ -6,7 +39,7 @@ except ImportError:
     from torch.utils.model_zoo import load_url as load_state_dict_from_url
 
 from functools import partial
-from typing import Dict, Any, List
+from typing import Dict, Type, Any, Callable, Union, List, Optional
 
 
 cifar10_pretrained_weight_urls = {
@@ -34,25 +67,8 @@ def conv1x1(in_planes, out_planes, stride=1):
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
 
-# 计数器类
-class Counter:
-    def __init__(self):
-        self.write_count = 0
-        self.relu_count = 0
-
-    def increment_write(self):
-        self.write_count += 1
-        return self.write_count
-
-    def increment_relu(self):
-        self.relu_count += 1
-        return self.relu_count
-
-    def reset(self):
-        self.write_count = 0
-        self.relu_count = 0
-
-
+write_count = 0  # 初始化全局变量
+relu_count = 0  # 初始化全局变量
 
 
 
@@ -73,28 +89,38 @@ class BasicBlock(nn.Module):
         self.layer_num = layer_num
         self.block_num = block_num
 
+         # 初始化计数器
+        write_count = 0
+        relu_count = 0
+
     def forward(self, x):
+        global write_count
+        global relu_count
+
         identity = x
         out = self.conv1(x)
         out = self.bn1(out)
 
-        # 更新计数器并生成文件名
-        write_count = self.counter.increment_write()
+        # 更新计数器并生成文件名：层数_块数_计数器.txt
+        write_count += 1
         filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
         out = self.relu(out)
-        relu_count = self.counter.increment_relu()
+        relu_count += 1
         filename = f"{self.layer_num}_{self.block_num}_{relu_count}_relu.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
+
+
+
 
         out = self.conv2(out)
         out = self.bn2(out)
 
         # 再次更新计数器并生成文件名
-        write_count = self.counter.increment_write()
+        write_count += 1
         filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
@@ -104,20 +130,20 @@ class BasicBlock(nn.Module):
 
         out += identity
         out = self.relu(out)
-        relu_count = self.counter.increment_relu()
+        relu_count += 1
         filename = f"{self.layer_num}_{self.block_num}_{relu_count}_relu.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
+
         return out
+
 
 
 class CifarResNet(nn.Module):
 
     def __init__(self, block, layers, num_classes=10):
         super(CifarResNet, self).__init__()
-        self.counter = Counter()  # 添加计数器实例
-
         self.inplanes = 16
         self.conv1 = conv3x3(3, 16)
         self.bn1 = nn.BatchNorm2d(16)
@@ -129,6 +155,8 @@ class CifarResNet(nn.Module):
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(64 * block.expansion, num_classes)
+
+        
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -146,12 +174,13 @@ class CifarResNet(nn.Module):
             )
 
         layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample, layer_num=layer_num, block_num=1, counter=self.counter))
+        layers.append(block(self.inplanes, planes, stride, downsample, layer_num=layer_num, block_num=1))
         self.inplanes = planes * block.expansion
         for i in range(1, blocks):
-            layers.append(block(self.inplanes, planes, layer_num=layer_num, block_num=i + 1, counter=self.counter))
+            layers.append(block(self.inplanes, planes, layer_num=layer_num, block_num=i + 1))
 
-    return nn.Sequential(*layers)
+        return nn.Sequential(*layers)
+
 
     def forward(self, x):
         x = self.conv1(x)
@@ -171,6 +200,8 @@ class CifarResNet(nn.Module):
         x = self.fc(x)
 
         return x
+
+
 
 
 def _resnet(
