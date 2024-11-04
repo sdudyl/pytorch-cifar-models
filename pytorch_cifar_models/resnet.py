@@ -92,10 +92,7 @@ class BasicBlock(nn.Module):
         # write_count = 0
         # relu_count = 0
 
-    def forward(self, x):
-        global write_count
-        global relu_count
-
+    def forward(self, x, layer_num, block_num, model):
         identity = x
         out = self.conv1(x)
         out = self.bn1(out)
