@@ -206,4 +206,17 @@ def cifar100_resnet56(*args, **kwargs) -> CifarResNet: pass
 
 thismodule = sys.modules[__name__]
 for dataset in ["cifar10", "cifar100"]:
-    for layers, model_name in zip([[3]*3, [5]*
+    for layers, model_name in zip([[3]*3, [5]*3, [7]*3, [9]*3],
+                                  ["resnet20", "resnet32", "resnet44", "resnet56"]):
+        method_name = f"{dataset}_{model_name}"
+        model_urls = cifar10_pretrained_weight_urls if dataset == "cifar10" else cifar100_pretrained_weight_urls
+        num_classes = 10 if dataset == "cifar10" else 100
+        setattr(
+            thismodule,
+            method_name,
+            partial(_resnet,
+                    arch=model_name,
+                    layers=layers,
+                    model_urls=model_urls,
+                    num_classes=num_classes)
+        )
