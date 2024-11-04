@@ -119,6 +119,8 @@ class CifarResNet(nn.Module):
 
     def __init__(self, block, layers, num_classes=10):
         super(CifarResNet, self).__init__()
+        self.counter = Counter()  # 添加计数器实例
+
         self.inplanes = 16
         self.conv1 = conv3x3(3, 16)
         self.bn1 = nn.BatchNorm2d(16)
