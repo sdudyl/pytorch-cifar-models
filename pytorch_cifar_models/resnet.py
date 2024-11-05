@@ -109,6 +109,8 @@ class BasicBlock(nn.Module):
         out = self.conv1(x)
         out = self.bn1(out)
 
+        global counter
+
         write_count = counter.increment_write()
         filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
         with open(filename, "w") as f:
