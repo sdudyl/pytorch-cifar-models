@@ -174,6 +174,7 @@ class CifarResNet(nn.Module):
 
     def reset_counter(self):
         self.counter.reset()
+        print("Counter reset successfully")
 
     def _make_layer(self, block, planes, blocks, layer_num, stride=1):
         downsample = None
