@@ -67,25 +67,6 @@ def conv1x1(in_planes, out_planes, stride=1):
     """1x1 convolution"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
-
-class Counter:
-    def __init__(self):
-        self.write_count = 0
-        self.relu_count = 0
-
-    def increment_write(self):
-        self.write_count += 1
-        return self.write_count
-
-    def increment_relu(self):
-        self.relu_count += 1
-        return self.relu_count
-
-    def reset(self):
-        self.write_count = 0
-        self.relu_count = 0
-
-
 # counter = Counter()  # 创建计数器实例
 
 
@@ -146,6 +127,22 @@ class BasicBlock(nn.Module):
 
 
 class CifarResNet(nn.Module):
+     class Counter:
+        def __init__(self):
+            self.write_count = 0
+            self.relu_count = 0
+
+        def increment_write(self):
+            self.write_count += 1
+            return self.write_count
+
+        def increment_relu(self):
+            self.relu_count += 1
+            return self.relu_count
+
+        def reset(self):
+            self.write_count = 0
+            self.relu_count = 0
 
 
     def __init__(self, block, layers, num_classes=10):
@@ -160,7 +157,7 @@ class CifarResNet(nn.Module):
         self.layer3 = self._make_layer(block, 64, layers[2], layer_num=3, stride=2)
         
          # 初始化计数器
-        self.counter = Counter()  # 将计数器作为类实例的一个属性
+        self.counter = self.Counter()  # 将计数器作为类实例的一个属性
         print(self.counter)
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
@@ -221,8 +218,6 @@ def _resnet(
     **kwargs: Any
 ) -> CifarResNet:
     model = CifarResNet(BasicBlock, layers, **kwargs)
-    print(model.counter)
-    print("----------------")
     if pretrained:
         state_dict = load_state_dict_from_url(model_urls[arch],
                                               progress=progress)
