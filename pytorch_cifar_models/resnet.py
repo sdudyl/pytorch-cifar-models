@@ -127,7 +127,8 @@ class BasicBlock(nn.Module):
 
 
 class CifarResNet(nn.Module):
-     class Counter:
+
+    class Counter:
         def __init__(self):
             self.write_count = 0
             self.relu_count = 0
@@ -144,7 +145,6 @@ class CifarResNet(nn.Module):
             self.write_count = 0
             self.relu_count = 0
 
-
     def __init__(self, block, layers, num_classes=10):
         super(CifarResNet, self).__init__()
         self.inplanes = 16
@@ -156,7 +156,7 @@ class CifarResNet(nn.Module):
         self.layer2 = self._make_layer(block, 32, layers[1], layer_num=2, stride=2)
         self.layer3 = self._make_layer(block, 64, layers[2], layer_num=3, stride=2)
         
-         # 初始化计数器
+        # 初始化计数器
         self.counter = self.Counter()  # 将计数器作为类实例的一个属性
         print(self.counter)
 
@@ -171,7 +171,7 @@ class CifarResNet(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
     def reset_counter(self):
-        self.counter.reset() 
+        self.counter.reset()
 
     def _make_layer(self, block, planes, blocks, layer_num, stride=1):
         downsample = None
