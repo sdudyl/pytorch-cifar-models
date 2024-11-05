@@ -103,22 +103,22 @@ class BasicBlock(nn.Module):
         self.stride = stride
         self.layer_num = layer_num
         self.block_num = block_num
-        self.my_counter = counter 
+        self.counter = counter 
 
     def forward(self, x):
         identity = x
         out = self.conv1(x)
         out = self.bn1(out)
 
-        write_count = self.my_counter.increment_write()
+        write_count = self.counter.increment_write()
         filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
         out = self.relu(out)
 
-        # 通过 self.my_counter 访问计数器
-        relu_count = self.my_counter.increment_relu()
+        # 通过 self.counter 访问计数器
+        relu_count = self.counter.increment_relu()
         filename = f"{self.layer_num}_{self.block_num}_{relu_count}_relu.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
@@ -126,8 +126,8 @@ class BasicBlock(nn.Module):
         out = self.conv2(out)
         out = self.bn2(out)
 
-        # 通过 self.my_counter 访问计数器
-        write_count = self.my_counter.increment_write()
+        # 通过 self.counter 访问计数器
+        write_count = self.counter.increment_write()
         filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
@@ -137,7 +137,7 @@ class BasicBlock(nn.Module):
 
         out += identity
         out = self.relu(out)
-        relu_count = self.my_counter.increment_relu()
+        relu_count = self.counter.increment_relu()
         filename = f"{self.layer_num}_{self.block_num}_{relu_count}_relu.txt"
         with open(filename, "w") as f:
             f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
@@ -160,7 +160,8 @@ class CifarResNet(nn.Module):
         self.layer3 = self._make_layer(block, 64, layers[2], layer_num=3, stride=2)
         
          # 初始化计数器
-        self.my_counter = Counter()  # 将计数器作为类实例的一个属性
+        self.counter = Counter()  # 将计数器作为类实例的一个属性
+        print(self.counter)
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(64 * block.expansion, num_classes)
@@ -173,7 +174,7 @@ class CifarResNet(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
     def reset_counter(self):
-        self.my_counter.reset() 
+        self.counter.reset() 
 
     def _make_layer(self, block, planes, blocks, layer_num, stride=1):
         downsample = None
@@ -184,10 +185,10 @@ class CifarResNet(nn.Module):
             )
 
         layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample, layer_num=layer_num, block_num=1, counter=self.my_counter))
+        layers.append(block(self.inplanes, planes, stride, downsample, layer_num=layer_num, block_num=1, counter=self.counter))
         self.inplanes = planes * block.expansion
         for i in range(1, blocks):
-            layers.append(block(self.inplanes, planes, layer_num=layer_num, block_num=i + 1, counter=self.my_counter))
+            layers.append(block(self.inplanes, planes, layer_num=layer_num, block_num=i + 1, counter=self.counter))
 
         return nn.Sequential(*layers)
 
