@@ -221,6 +221,8 @@ def _resnet(
     **kwargs: Any
 ) -> CifarResNet:
     model = CifarResNet(BasicBlock, layers, **kwargs)
+    print(model.counter)
+    print("----------------")
     if pretrained:
         state_dict = load_state_dict_from_url(model_urls[arch],
                                               progress=progress)
