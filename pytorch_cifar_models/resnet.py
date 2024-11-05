@@ -158,7 +158,7 @@ class CifarResNet(nn.Module):
         
         # 初始化计数器
         self.counter = self.Counter()  # 将计数器作为类实例的一个属性
-        print(self.counter)
+        print("Counter initialized:", self.counter)
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(64 * block.expansion, num_classes)
