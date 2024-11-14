@@ -38,7 +38,7 @@ def conv1x1(in_planes, out_planes, stride=1):
     """1x1 convolution"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
-
+print(111111111111111111)
 
 # 定义 MLP 模型
 class MLP(nn.Module):
