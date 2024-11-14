@@ -40,7 +40,7 @@ def conv1x1(in_planes, out_planes, stride=1):
 
 print(111111111111111111)
 
-# 定义 MLP 模型
+# 加载训练好的模型
 class MLP(nn.Module):
     def __init__(self):
         super(MLP, self).__init__()
@@ -53,22 +53,23 @@ class MLP(nn.Module):
         x = torch.relu(self.fc2(x))
         return self.fc3(x)
 
-# 将 MLP 模型的 URL 添加到字典中
-mlp_model_urls = {
-    'mlp': 'https://github.com/sdudyl/pytorch-cifar-models/blob/master/pytorch_cifar_models/mlp_model.pth'
-}
+# 下载 GitHub 上的模型文件并加载
+def load_model_from_github(url):
+    response = requests.get(url)
+    if response.status_code == 200:
+        model_data = BytesIO(response.content)
+        model = MLP()
+        model.load_state_dict(torch.load(model_data))
+        return model
+    else:
+        raise Exception(f"Failed to download model from {url}")
 
-# 直接从 URL 加载 MLP 模型
-def load_mlp_model():
-    # 初始化 MLP 模型
-    mlp_model = MLP()
-    # 从 URL 下载并加载模型权重
-    state_dict = load_state_dict_from_url(mlp_model_urls['mlp'])
-    mlp_model.load_state_dict(state_dict)
-    return mlp_model
-
-# 示例：加载 MLP 模型
-mlp_model = load_mlp_model()
+# 初始化模型并加载预训练的权重
+mlp_model = MLP()
+# GitHub 上的模型文件 URL
+mlp_model_url = 'https://raw.githubusercontent.com/sdudyl/pytorch-cifar-models/master/pytorch_cifar_models/mlp_model.pth'  # 替换为实际的 GitHub 文件 URL
+# 加载模型
+mlp_model = load_model_from_github(mlp_model_url)
 mlp_model.eval()  # 设置为评估模式
 
 
