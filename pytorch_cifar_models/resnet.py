@@ -35,7 +35,7 @@ def conv1x1(in_planes, out_planes, stride=1):
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
 
-# 定义 MLP 类
+# 加载训练好的模型
 class MLP(nn.Module):
     def __init__(self):
         super(MLP, self).__init__()
@@ -44,18 +44,28 @@ class MLP(nn.Module):
         self.fc3 = nn.Linear(8, 1)
 
     def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
         return self.fc3(x)
 
-# 加载 MLP 模型
-mlp_model = MLP()
-# 直接使用GitHub上的URL
-mlp_model_url = 'https://raw.githubusercontent.com/sdudyl/pytorch-cifar-models/master/pytorch_cifar_models/mlp_model.pth'   # GitHub上的模型文件链接
-# 使用load_state_dict_from_url加载模型
-state_dict = load_state_dict_from_url(mlp_model_url)
-mlp_model.load_state_dict(state_dict)
-mlp_model.eval()  # 设置为评估模式
+# 下载 GitHub 上的模型文件并加载
+def load_model_from_github(url):
+    response = requests.get(url)
+    if response.status_code == 200:
+        model_data = BytesIO(response.content)
+        model = MLP()
+        model.load_state_dict(torch.load(model_data))
+        return model
+    else:
+        raise Exception(f"Failed to download model from {url}")
+
+# 初始化模型并加载预训练的权重
+model = MLP()
+# GitHub 上的模型文件 URL
+model_url = 'https://raw.githubusercontent.com/sdudyl/pytorch-cifar-models/master/pytorch_cifar_models/mlp_model.pth'  # 替换为实际的 GitHub 文件 URL
+# 加载模型
+model = load_model_from_github(model_url)
+model.eval()  # 设置为评估模式
 
 
 
