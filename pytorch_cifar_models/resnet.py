@@ -80,10 +80,21 @@ class BasicBlock(nn.Module):
         self.downsample = downsample
         self.stride = stride
 
+        # 加载已训练的模型
+        self.trained_network = torch.load(trained_network_path)
+        self.trained_network.eval()  # 切换到评估模式
+
+    def _process_with_trained_network(self, x):
+        # 将 x 传递给已训练的网络，并返回输出
+        with torch.no_grad():
+            processed_output = self.trained_network(x)
+        return processed_output
+
     def forward(self, x):
         identity = x
 
         out = self.conv1(x)
+        out = self._process_with_trained_network(out)
         out = self.bn1(out)
         out = self.relu(out)
 
@@ -107,6 +118,10 @@ class CifarResNet(nn.Module):
         self.conv1 = conv3x3(3, 16)
         self.bn1 = nn.BatchNorm2d(16)
         self.relu = nn.ReLU(inplace=True)
+
+        # 加载已训练的模型
+        self.trained_network = torch.load(trained_network_path)
+        self.trained_network.eval()  # 切换到评估模式
 
         self.layer1 = self._make_layer(block, 16, layers[0])
         self.layer2 = self._make_layer(block, 32, layers[1], stride=2)
@@ -138,8 +153,19 @@ class CifarResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
+
+
+    def _process_with_trained_network(self, x):
+        # 将 x 传递给已训练的网络，并返回输出
+        with torch.no_grad():
+            processed_output = self.trained_network(x)
+        return processed_output
+
+
     def forward(self, x):
         x = self.conv1(x)
+        x = self._process_with_trained_network(x)
+
         x = self.bn1(x)
         x = self.relu(x)
 
