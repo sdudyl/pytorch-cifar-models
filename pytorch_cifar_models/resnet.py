@@ -33,7 +33,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 '''
 import sys
 import torch
-import torchvision
 import torch.nn as nn
 try:
     from torch.hub import load_state_dict_from_url
@@ -69,7 +68,6 @@ def conv1x1(in_planes, out_planes, stride=1):
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
 
-
 # 定义 MLP 类
 class MLP(nn.Module):
     def __init__(self):
@@ -79,9 +77,16 @@ class MLP(nn.Module):
         self.fc3 = nn.Linear(8, 1)
 
     def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
         return self.fc3(x)
+
+# 加载 MLP 模型
+mlp_model = MLP()
+model_path = "/home/dyl/0A-resnet_data/3/mlp_model.pth"  # MLP模型权重文件路径
+mlp_model.load_state_dict(torch.load(model_path))
+mlp_model.eval()  # 设置为评估模式
+
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -96,24 +101,10 @@ class BasicBlock(nn.Module):
         self.downsample = downsample
         self.stride = stride
 
-        # 加载已训练的 MLP 模型并设置为评估模式
-        self.trained_network = MLP()
-        self.trained_network.load_state_dict(torch.load("/home/dyl/0A-resnet_data/3/mlp_model.pth", weights_only=True))
-        self.trained_network.eval()
-
-    def _process_with_trained_network(self, x):
-        # 将 x 展平成 MLP 输入，传入已训练的 MLP 进行处理
-        batch_size, channels, height, width = x.shape
-        x = x.view(-1, 1)  # 展平成单个元素通道
-        with torch.no_grad():
-            processed_output = self.trained_network(x)
-        return processed_output.view(batch_size, channels, height, width)  # 恢复形状
-
     def forward(self, x):
         identity = x
 
         out = self.conv1(x)
-        #out = self._process_with_trained_network(out)
         out = self.bn1(out)
         out = self.relu(out)
 
@@ -137,12 +128,6 @@ class CifarResNet(nn.Module):
         self.conv1 = conv3x3(3, 16)
         self.bn1 = nn.BatchNorm2d(16)
         self.relu = nn.ReLU(inplace=True)
-
-        # 加载已训练的 MLP 模型并设置为评估模式
-        self.trained_network = MLP()
-        self.trained_network.load_state_dict(torch.load("/home/dyl/0A-resnet_data/3/mlp_model.pth", weights_only=True))
-        self.trained_network.eval()
-
 
         self.layer1 = self._make_layer(block, 16, layers[0])
         self.layer2 = self._make_layer(block, 32, layers[1], stride=2)
@@ -174,21 +159,18 @@ class CifarResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-
-
-    def _process_with_trained_network(self, x):
-        # 将 x 展平成 MLP 输入，传入已训练的 MLP 进行处理
-        batch_size, channels, height, width = x.shape
-        x = x.view(-1, 1)  # 展平成单个元素通道
-        with torch.no_grad():
-            processed_output = self.trained_network(x)
-        return processed_output.view(batch_size, channels, height, width)  # 恢复形状
+     def _apply_mlp_to_conv_output(self, x):
+        """对每一层卷积的输出应用 MLP 网络"""
+        b, c, h, w = x.size()
+        x = x.view(b * c * h * w, 1)  # 扁平化为一维
+        x = self.mlp(x)  # 通过 MLP
+        x = x.view(b, c, h, w)  # 恢复成原来的尺寸
+        return x
 
 
     def forward(self, x):
         x = self.conv1(x)
-        #x = self._process_with_trained_network(x)
-
+        x = self._apply_mlp_to_conv_output(x)  # 通过 MLP 处理卷积层输出
         x = self.bn1(x)
         x = self.relu(x)
 
