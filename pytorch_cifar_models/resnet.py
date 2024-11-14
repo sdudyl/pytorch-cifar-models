@@ -1,6 +1,10 @@
 import torch
 import sys
 import torch.nn as nn
+import os
+import requests
+from io import BytesIO
+
 try:
     from torch.hub import load_state_dict_from_url
 except ImportError:
