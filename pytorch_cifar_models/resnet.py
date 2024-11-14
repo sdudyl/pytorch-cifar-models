@@ -96,10 +96,10 @@ class BasicBlock(nn.Module):
         self.downsample = downsample
         self.stride = stride
 
-        # 加载已训练的 MLP 模型
+        # 加载已训练的 MLP 模型并设置为评估模式
         self.trained_network = MLP()
-        self.trained_network.load_state_dict(torch.load("/home/dyl/0A-resnet_data/3/mlp_model.pth"))
-        self.trained_network.eval()  # 设置为评估模式
+        self.trained_network.load_state_dict(torch.load("/home/dyl/0A-resnet_data/3/mlp_model.pth", weights_only=True))
+        self.trained_network.eval()
 
     def _process_with_trained_network(self, x):
         # 将 x 展平成 MLP 输入，传入已训练的 MLP 进行处理
@@ -138,10 +138,10 @@ class CifarResNet(nn.Module):
         self.bn1 = nn.BatchNorm2d(16)
         self.relu = nn.ReLU(inplace=True)
 
-        # 加载已训练的 MLP 模型
+        # 加载已训练的 MLP 模型并设置为评估模式
         self.trained_network = MLP()
-        self.trained_network.load_state_dict(torch.load("/home/dyl/0A-resnet_data/3/mlp_model.pth"))
-        self.trained_network.eval()  # 设置为评估模式
+        self.trained_network.load_state_dict(torch.load("/home/dyl/0A-resnet_data/3/mlp_model.pth", weights_only=True))
+        self.trained_network.eval()
 
 
         self.layer1 = self._make_layer(block, 16, layers[0])
