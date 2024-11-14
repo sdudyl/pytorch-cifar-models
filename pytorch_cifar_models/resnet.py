@@ -102,10 +102,12 @@ class BasicBlock(nn.Module):
         self.trained_network.eval()  # 设置为评估模式
 
     def _process_with_trained_network(self, x):
-        # 将 x 传递给已训练的网络，并返回输出
+        # 将 x 展平成 MLP 输入，传入已训练的 MLP 进行处理
+        batch_size, channels, height, width = x.shape
+        x = x.view(-1, 1)  # 展平成单个元素通道
         with torch.no_grad():
             processed_output = self.trained_network(x)
-        return processed_output
+        return processed_output.view(batch_size, channels, height, width)  # 恢复形状
 
     def forward(self, x):
         identity = x
@@ -175,10 +177,12 @@ class CifarResNet(nn.Module):
 
 
     def _process_with_trained_network(self, x):
-        # 将 x 传递给已训练的网络，并返回输出
+        # 将 x 展平成 MLP 输入，传入已训练的 MLP 进行处理
+        batch_size, channels, height, width = x.shape
+        x = x.view(-1, 1)  # 展平成单个元素通道
         with torch.no_grad():
             processed_output = self.trained_network(x)
-        return processed_output
+        return processed_output.view(batch_size, channels, height, width)  # 恢复形状
 
 
     def forward(self, x):
