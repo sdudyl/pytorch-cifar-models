@@ -90,6 +90,12 @@ class BasicBlock(nn.Module):
         identity = x
 
         out = self.conv1(x)
+
+        # Flatten output, pass through MLP, and reshape back
+        out_flat = out.view(out.size(0), -1)  # 将输出展平为 (batch_size, num_features)
+        out_flat = self.mlp_model(out_flat)  # 过一遍 MLP 模型
+        out = out_flat.view(out.shape)  # 恢复到原来的形状
+
         out = self.bn1(out)
         out = self.relu(out)
 
