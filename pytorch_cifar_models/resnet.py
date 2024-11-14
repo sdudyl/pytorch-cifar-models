@@ -113,7 +113,7 @@ class BasicBlock(nn.Module):
         identity = x
 
         out = self.conv1(x)
-        out = self._process_with_trained_network(out)
+        #out = self._process_with_trained_network(out)
         out = self.bn1(out)
         out = self.relu(out)
 
@@ -187,7 +187,7 @@ class CifarResNet(nn.Module):
 
     def forward(self, x):
         x = self.conv1(x)
-        x = self._process_with_trained_network(x)
+        #x = self._process_with_trained_network(x)
 
         x = self.bn1(x)
         x = self.relu(x)
