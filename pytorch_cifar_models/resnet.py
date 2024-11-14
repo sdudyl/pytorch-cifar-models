@@ -21,8 +21,8 @@ modification, are permitted provided that the following conditions are met:
   this software without specific prior written permission.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
 FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
@@ -31,7 +31,6 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 '''
-
 import sys
 import torch.nn as nn
 try:
@@ -67,13 +66,11 @@ def conv1x1(in_planes, out_planes, stride=1):
     """1x1 convolution"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
-# counter = Counter()  # 创建计数器实例
-
 
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None, layer_num=None, block_num=None, counter=None):
+    def __init__(self, inplanes, planes, stride=1, downsample=None):
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = nn.BatchNorm2d(planes)
@@ -82,68 +79,27 @@ class BasicBlock(nn.Module):
         self.bn2 = nn.BatchNorm2d(planes)
         self.downsample = downsample
         self.stride = stride
-        self.layer_num = layer_num
-        self.block_num = block_num
-        self.counter = counter 
 
     def forward(self, x):
         identity = x
+
         out = self.conv1(x)
         out = self.bn1(out)
-
-        write_count = self.counter.increment_write()
-        filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
-        with open(filename, "w") as f:
-            f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
-
         out = self.relu(out)
-
-        # 通过 self.counter 访问计数器
-        relu_count = self.counter.increment_relu()
-        filename = f"{self.layer_num}_{self.block_num}_{relu_count}_relu.txt"
-        with open(filename, "w") as f:
-            f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
         out = self.conv2(out)
         out = self.bn2(out)
-
-        # 通过 self.counter 访问计数器
-        write_count = self.counter.increment_write()
-        filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
-        with open(filename, "w") as f:
-            f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
         if self.downsample is not None:
             identity = self.downsample(x)
 
         out += identity
         out = self.relu(out)
-        relu_count = self.counter.increment_relu()
-        filename = f"{self.layer_num}_{self.block_num}_{relu_count}_relu.txt"
-        with open(filename, "w") as f:
-            f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
         return out
 
 
 class CifarResNet(nn.Module):
-
-    class Counter:
-        def __init__(self):
-            self.write_count = 0
-            self.relu_count = 0
-
-        def increment_write(self):
-            self.write_count += 1
-            return self.write_count
-
-        def increment_relu(self):
-            self.relu_count += 1
-            return self.relu_count
-
-        def reset(self):
-            self.write_count = 0
-            self.relu_count = 0
 
     def __init__(self, block, layers, num_classes=10):
         super(CifarResNet, self).__init__()
@@ -152,15 +108,9 @@ class CifarResNet(nn.Module):
         self.bn1 = nn.BatchNorm2d(16)
         self.relu = nn.ReLU(inplace=True)
 
-        # 初始化计数器
-        self.counter = self.Counter()  # 将计数器作为类实例的一个属性
-        print("Counter initialized:", self.counter)
-
-        self.layer1 = self._make_layer(block, 16, layers[0], layer_num=1)
-        self.layer2 = self._make_layer(block, 32, layers[1], layer_num=2, stride=2)
-        self.layer3 = self._make_layer(block, 64, layers[2], layer_num=3, stride=2)
-        
-        
+        self.layer1 = self._make_layer(block, 16, layers[0])
+        self.layer2 = self._make_layer(block, 32, layers[1], stride=2)
+        self.layer3 = self._make_layer(block, 64, layers[2], stride=2)
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(64 * block.expansion, num_classes)
@@ -172,11 +122,7 @@ class CifarResNet(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
-    def reset_counter(self):
-        self.counter.reset()
-        print("Counter reset successfully")
-
-    def _make_layer(self, block, planes, blocks, layer_num, stride=1):
+    def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
@@ -185,10 +131,10 @@ class CifarResNet(nn.Module):
             )
 
         layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample, layer_num=layer_num, block_num=1, counter=self.counter))
+        layers.append(block(self.inplanes, planes, stride, downsample))
         self.inplanes = planes * block.expansion
-        for i in range(1, blocks):
-            layers.append(block(self.inplanes, planes, layer_num=layer_num, block_num=i + 1, counter=self.counter))
+        for _ in range(1, blocks):
+            layers.append(block(self.inplanes, planes))
 
         return nn.Sequential(*layers)
 
@@ -197,19 +143,15 @@ class CifarResNet(nn.Module):
         x = self.bn1(x)
         x = self.relu(x)
 
-        for i, block in enumerate(self.layer1):
-            x = block(x)
-        for i, block in enumerate(self.layer2):
-            x = block(x)
-        for i, block in enumerate(self.layer3):
-            x = block(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
 
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
 
         return x
-
 
 
 def _resnet(
