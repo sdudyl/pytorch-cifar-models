@@ -69,6 +69,20 @@ def conv1x1(in_planes, out_planes, stride=1):
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
 
+
+# 定义 MLP 类
+class MLP(nn.Module):
+    def __init__(self):
+        super(MLP, self).__init__()
+        self.fc1 = nn.Linear(1, 16)
+        self.fc2 = nn.Linear(16, 8)
+        self.fc3 = nn.Linear(8, 1)
+
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)
+
 class BasicBlock(nn.Module):
     expansion = 1
 
@@ -82,9 +96,10 @@ class BasicBlock(nn.Module):
         self.downsample = downsample
         self.stride = stride
 
-        # 加载已训练的模型
-        self.trained_network = torch.load("/home/dyl/0A-resnet_data/3/mlp_model.pth")
-        self.trained_network.eval()  # 切换到评估模式
+        # 加载已训练的 MLP 模型
+        self.trained_network = MLP()
+        self.trained_network.load_state_dict(torch.load(trained_network_path))
+        self.trained_network.eval()  # 设置为评估模式
 
     def _process_with_trained_network(self, x):
         # 将 x 传递给已训练的网络，并返回输出
@@ -121,9 +136,11 @@ class CifarResNet(nn.Module):
         self.bn1 = nn.BatchNorm2d(16)
         self.relu = nn.ReLU(inplace=True)
 
-        # 加载已训练的模型
-        self.trained_network = torch.load("/home/dyl/0A-resnet_data/3/mlp_model.pth")
-        self.trained_network.eval()  # 切换到评估模式
+        # 加载已训练的 MLP 模型
+        self.trained_network = MLP()
+        self.trained_network.load_state_dict(torch.load(trained_network_path))
+        self.trained_network.eval()  # 设置为评估模式
+
 
         self.layer1 = self._make_layer(block, 16, layers[0])
         self.layer2 = self._make_layer(block, 32, layers[1], stride=2)
