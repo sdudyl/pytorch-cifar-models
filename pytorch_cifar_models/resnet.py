@@ -98,7 +98,7 @@ class BasicBlock(nn.Module):
 
         # 加载已训练的 MLP 模型
         self.trained_network = MLP()
-        self.trained_network.load_state_dict(torch.load(trained_network_path))
+        self.trained_network.load_state_dict(torch.load("/home/dyl/0A-resnet_data/3/mlp_model.pth"))
         self.trained_network.eval()  # 设置为评估模式
 
     def _process_with_trained_network(self, x):
@@ -138,7 +138,7 @@ class CifarResNet(nn.Module):
 
         # 加载已训练的 MLP 模型
         self.trained_network = MLP()
-        self.trained_network.load_state_dict(torch.load(trained_network_path))
+        self.trained_network.load_state_dict(torch.load("/home/dyl/0A-resnet_data/3/mlp_model.pth"))
         self.trained_network.eval()  # 设置为评估模式
 
 
