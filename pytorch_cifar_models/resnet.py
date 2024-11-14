@@ -1,12 +1,14 @@
-import sys
 import torch
+import sys
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.hub import load_state_dict_from_url
-from functools import partial
-from typing import List, Dict, Any
-from torch.hub import load_state_dict_from_url
+try:
+    from torch.hub import load_state_dict_from_url
+except ImportError:
+    from torch.utils.model_zoo import load_url as load_state_dict_from_url
 
+from functools import partial
+from typing import Dict, Type, Any, Callable, Union, List, Optional
+from torch.hub import load_state_dict_from_url
 
 cifar10_pretrained_weight_urls = {
     'resnet20': 'https://github.com/chenyaofo/pytorch-cifar-models/releases/download/resnet/cifar10_resnet20-4118986f.pt',
@@ -32,6 +34,7 @@ def conv1x1(in_planes, out_planes, stride=1):
     """1x1 convolution"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
+
 # 定义 MLP 类
 class MLP(nn.Module):
     def __init__(self):
@@ -53,8 +56,6 @@ mlp_model_url = 'https://raw.githubusercontent.com/sdudyl/pytorch-cifar-models/m
 state_dict = load_state_dict_from_url(mlp_model_url)
 mlp_model.load_state_dict(state_dict)
 mlp_model.eval()  # 设置为评估模式
-
-
 
 
 
@@ -106,8 +107,6 @@ class CifarResNet(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(64 * block.expansion, num_classes)
 
-        self.mlp = mlp_model  # 将加载的 MLP 模型作为成员变量
-
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -133,7 +132,6 @@ class CifarResNet(nn.Module):
 
     def forward(self, x):
         x = self.conv1(x)
-        x = self._apply_mlp_to_conv_output(x)  # 通过 MLP 处理卷积层输出
         x = self.bn1(x)
         x = self.relu(x)
 
@@ -145,14 +143,6 @@ class CifarResNet(nn.Module):
         x = x.view(x.size(0), -1)
         x = self.fc(x)
 
-        return x
-
-    def _apply_mlp_to_conv_output(self, x):
-        """对每一层卷积的输出应用 MLP 网络"""
-        b, c, h, w = x.size()
-        x = x.view(b * c * h * w, 1)  # 扁平化为一维
-        x = self.mlp(x)  # 通过 MLP
-        x = x.view(b, c, h, w)  # 恢复成原来的尺寸
         return x
 
 
