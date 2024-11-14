@@ -159,14 +159,7 @@ class CifarResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-     def _apply_mlp_to_conv_output(self, x):
-        """对每一层卷积的输出应用 MLP 网络"""
-        b, c, h, w = x.size()
-        x = x.view(b * c * h * w, 1)  # 扁平化为一维
-        x = self.mlp(x)  # 通过 MLP
-        x = x.view(b, c, h, w)  # 恢复成原来的尺寸
-        return x
-
+     
 
     def forward(self, x):
         x = self.conv1(x)
@@ -183,6 +176,15 @@ class CifarResNet(nn.Module):
         x = self.fc(x)
 
         return x
+
+    def _apply_mlp_to_conv_output(self, x):
+        """对每一层卷积的输出应用 MLP 网络"""
+        b, c, h, w = x.size()
+        x = x.view(b * c * h * w, 1)  # 扁平化为一维
+        x = self.mlp(x)  # 通过 MLP
+        x = x.view(b, c, h, w)  # 恢复成原来的尺寸
+        return x
+
 
 
 def _resnet(
