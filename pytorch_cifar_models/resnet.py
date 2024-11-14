@@ -32,6 +32,8 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 '''
 import sys
+import torch
+import torchvision
 import torch.nn as nn
 try:
     from torch.hub import load_state_dict_from_url
@@ -81,7 +83,7 @@ class BasicBlock(nn.Module):
         self.stride = stride
 
         # 加载已训练的模型
-        self.trained_network = torch.load(trained_network_path)
+        self.trained_network = torch.load("/home/dyl/0A-resnet_data/3/mlp_model.pth")
         self.trained_network.eval()  # 切换到评估模式
 
     def _process_with_trained_network(self, x):
@@ -120,7 +122,7 @@ class CifarResNet(nn.Module):
         self.relu = nn.ReLU(inplace=True)
 
         # 加载已训练的模型
-        self.trained_network = torch.load(trained_network_path)
+        self.trained_network = torch.load("/home/dyl/0A-resnet_data/3/mlp_model.pth")
         self.trained_network.eval()  # 切换到评估模式
 
         self.layer1 = self._make_layer(block, 16, layers[0])
