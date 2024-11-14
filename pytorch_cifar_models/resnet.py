@@ -48,11 +48,12 @@ class MLP(nn.Module):
 # 加载 MLP 模型
 mlp_model = MLP()
 # 直接使用GitHub上的URL
-mlp_model_url = 'https://github.com/sdudyl/pytorch-cifar-models/tree/master/pytorch_cifar_models/mlp_model.pth'  # GitHub上的模型文件链接
+mlp_model_url = 'https://raw.githubusercontent.com/sdudyl/pytorch-cifar-models/master/pytorch_cifar_models/mlp_model.pth'   # GitHub上的模型文件链接
 # 使用load_state_dict_from_url加载模型
 state_dict = load_state_dict_from_url(mlp_model_url)
 mlp_model.load_state_dict(state_dict)
 mlp_model.eval()  # 设置为评估模式
+
 
 
 
