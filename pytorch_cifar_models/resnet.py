@@ -119,7 +119,7 @@ class CifarResNet(nn.Module):
         # GitHub 上的模型文件 URL
         self.mlp_model_url = 'https://raw.githubusercontent.com/sdudyl/pytorch-cifar-models/master/pytorch_cifar_models/mlp_model.pth'  # 替换为实际的 GitHub 文件 URL
         # 加载模型
-        self.mlp_model = load_model_from_github(self.mlp_model_url)
+        self.mlp_model = self.load_model_from_github(self.mlp_model_url)
         self.mlp_model.eval()  # 设置为评估模式
 
         self.layer1 = self._make_layer(block, 16, layers[0],mlp_model=self.mlp_model)
