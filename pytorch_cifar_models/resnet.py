@@ -97,7 +97,9 @@ class BasicBlock(nn.Module):
 
 
 class CifarResNet(nn.Module):
-    def load_model_from_github(self,url):
+    mlp_model = None  # 静态变量，存储唯一的 mlp_model 实例
+
+    def load_model_from_github(self, url):
         response = requests.get(url)
         if response.status_code == 200:
             model_data = BytesIO(response.content)
@@ -114,17 +116,15 @@ class CifarResNet(nn.Module):
         self.bn1 = nn.BatchNorm2d(16)
         self.relu = nn.ReLU(inplace=True)
 
-        # 初始化模型并加载预训练的权重
-        self.mlp_model = MLP()
-        # GitHub 上的模型文件 URL
-        self.mlp_model_url = 'https://raw.githubusercontent.com/sdudyl/pytorch-cifar-models/master/pytorch_cifar_models/mlp_model.pth'  # 替换为实际的 GitHub 文件 URL
-        # 加载模型
-        self.mlp_model = self.load_model_from_github(self.mlp_model_url)
-        self.mlp_model.eval()  # 设置为评估模式
+        # 如果静态变量 mlp_model 还没有加载，则加载一次
+        if CifarResNet.mlp_model is None:
+            mlp_model_url = 'https://raw.githubusercontent.com/sdudyl/pytorch-cifar-models/master/pytorch_cifar_models/mlp_model.pth'
+            CifarResNet.mlp_model = self.load_model_from_github(mlp_model_url)
+            CifarResNet.mlp_model.eval()  # 设置为评估模式
 
-        self.layer1 = self._make_layer(block, 16, layers[0])
-        self.layer2 = self._make_layer(block, 32, layers[1], stride=2)
-        self.layer3 = self._make_layer(block, 64, layers[2], stride=2)
+        self.layer1 = self._make_layer(block, 16, layers[0], mlp_model=CifarResNet.mlp_model)
+        self.layer2 = self._make_layer(block, 32, layers[1], stride=2, mlp_model=CifarResNet.mlp_model)
+        self.layer3 = self._make_layer(block, 64, layers[2], stride=2, mlp_model=CifarResNet.mlp_model)
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(64 * block.expansion, num_classes)
@@ -136,7 +136,7 @@ class CifarResNet(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
-    def _make_layer(self, block, planes, blocks, stride=1):
+    def _make_layer(self, block, planes, blocks, stride=1, mlp_model=None):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
@@ -145,27 +145,13 @@ class CifarResNet(nn.Module):
             )
 
         layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample, mlp_model=self.mlp_model))
+        layers.append(block(self.inplanes, planes, stride, downsample, mlp_model))
         self.inplanes = planes * block.expansion
         for _ in range(1, blocks):
-            layers.append(block(self.inplanes, planes, mlp_model=self.mlp_model))
+            layers.append(block(self.inplanes, planes, mlp_model=mlp_model))
 
         return nn.Sequential(*layers)
 
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-
-        x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc(x)
-
-        return x
 
 
 def _resnet(
