@@ -97,7 +97,7 @@ class BasicBlock(nn.Module):
 
 
 class CifarResNet(nn.Module):
-    def load_model_from_github(url):
+    def load_model_from_github(self,url):
         response = requests.get(url)
         if response.status_code == 200:
             model_data = BytesIO(response.content)
