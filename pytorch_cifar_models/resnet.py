@@ -98,14 +98,14 @@ class BasicBlock(nn.Module):
 
 class CifarResNet(nn.Module):
     def load_model_from_github(url):
-    response = requests.get(url)
-    if response.status_code == 200:
-        model_data = BytesIO(response.content)
-        model = MLP()
-        model.load_state_dict(torch.load(model_data))
-        return model
-    else:
-        raise Exception(f"Failed to download model from {url}")
+        response = requests.get(url)
+        if response.status_code == 200:
+            model_data = BytesIO(response.content)
+            model = MLP()
+            model.load_state_dict(torch.load(model_data))
+            return model
+        else:
+            raise Exception(f"Failed to download model from {url}")
 
     def __init__(self, block, layers, num_classes=10):
         super(CifarResNet, self).__init__()
