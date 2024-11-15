@@ -93,13 +93,15 @@ class CifarResNet(nn.Module):
 
         # 如果静态变量 mlp_model 还没有加载，则从 URL 加载一次
         if CifarResNet.mlp_model is None:
-            response = requests.get(CifarResNet.mlp_model_url)
-            if response.status_code == 200:
-                model_data = BytesIO(response.content)
-                CifarResNet.mlp_model = torch.load(model_data, map_location=torch.device('cpu'))
-                CifarResNet.mlp_model.eval()  # 设置为评估模式
-            else:
-                raise Exception(f"Failed to download model from {CifarResNet.mlp_model_url}")
+        response = requests.get(CifarResNet.mlp_model_url)
+        if response.status_code == 200:
+            model_data = BytesIO(response.content)
+            # 使用 map_location=device 来确保兼容不同的设备（例如 CPU 或 GPU）
+            CifarResNet.mlp_model = torch.load(model_data, map_location=torch.device('cpu'))
+            CifarResNet.mlp_model.eval()  # 设置为评估模式
+        else:
+            raise Exception(f"Failed to download model from {CifarResNet.mlp_model_url}")
+
 
         self.layer1 = self._make_layer(block, 16, layers[0], mlp_model=CifarResNet.mlp_model)
         self.layer2 = self._make_layer(block, 32, layers[1], stride=2, mlp_model=CifarResNet.mlp_model)
