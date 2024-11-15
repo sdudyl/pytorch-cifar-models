@@ -115,13 +115,13 @@ class CifarResNet(nn.Module):
         self.conv1 = conv3x3(3, 16)
         self.bn1 = nn.BatchNorm2d(16)
         self.relu = nn.ReLU(inplace=True)
-
+        print(222222222222222222222)
         # 如果静态变量 mlp_model 还没有加载，则加载一次
         if CifarResNet.mlp_model is None:
             mlp_model_url = 'https://raw.githubusercontent.com/sdudyl/pytorch-cifar-models/master/pytorch_cifar_models/mlp_model.pth'
             CifarResNet.mlp_model = self.load_model_from_github(mlp_model_url)
             CifarResNet.mlp_model.eval()  # 设置为评估模式
-
+        print(333333333333333333)
         self.layer1 = self._make_layer(block, 16, layers[0], mlp_model=CifarResNet.mlp_model)
         self.layer2 = self._make_layer(block, 32, layers[1], stride=2, mlp_model=CifarResNet.mlp_model)
         self.layer3 = self._make_layer(block, 64, layers[2], stride=2, mlp_model=CifarResNet.mlp_model)
