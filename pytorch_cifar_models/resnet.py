@@ -86,6 +86,23 @@ class BasicBlock(nn.Module):
         self.downsample = downsample
         self.stride = stride
 
+        # 在每个 BasicBlock 实例中加载模型
+        self.mlp_model = self.load_mlp_model()
+
+    def load_mlp_model():
+        """加载训练好的 MLP 模型"""
+        mlp_model = MLP()  # 创建 MLP 模型实例
+        model_url = 'https://raw.githubusercontent.com/sdudyl/pytorch-cifar-models/master/pytorch_cifar_models/mlp_model.pth'  # 模型文件 URL
+        response = requests.get(model_url)
+        if response.status_code == 200:
+            model_data = BytesIO(response.content)
+            mlp_model.load_state_dict(torch.load(model_data))
+            mlp_model.eval()  # 设置为评估模式
+            return mlp_model
+        else:
+            raise Exception(f"Failed to download model from {model_url}")
+
+
     def forward(self, x):
         identity = x
 
