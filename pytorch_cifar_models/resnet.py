@@ -40,19 +40,6 @@ def conv1x1(in_planes, out_planes, stride=1):
 
 print(111111111111111111)
 
-# 加载训练好的模型
-class MLP(nn.Module):
-    def __init__(self):
-        super(MLP, self).__init__()
-        self.fc1 = nn.Linear(1, 16)
-        self.fc2 = nn.Linear(16, 8)
-        self.fc3 = nn.Linear(8, 1)
-
-    def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        return self.fc3(x)
-
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -66,23 +53,20 @@ class BasicBlock(nn.Module):
         self.bn2 = nn.BatchNorm2d(planes)
         self.downsample = downsample
         self.stride = stride
-
-        # 在每个 BasicBlock 实例中加载模型
-        self.mlp_model = mlp_model  # 将 MLP 模型作为参数传入
-
+        self.mlp_model = mlp_model
 
     def forward(self, x):
         identity = x
 
         out = self.conv1(x)
-
-        # Flatten output, pass through MLP, and reshape back
-        out_flat = out.view(out.size(0), -1)  # 将输出展平为 (batch_size, num_features)
-        out_flat = self.mlp_model(out_flat)  # 过一遍 MLP 模型
-        out = out_flat.view(out.shape)  # 恢复到原来的形状
-
         out = self.bn1(out)
         out = self.relu(out)
+
+        if self.mlp_model is not None:
+            # Flatten output, pass through MLP, and reshape back
+            out_flat = out.view(out.size(0), -1)
+            out_flat = self.mlp_model(out_flat)
+            out = out_flat.view(out.shape)
 
         out = self.conv2(out)
         out = self.bn2(out)
@@ -98,16 +82,7 @@ class BasicBlock(nn.Module):
 
 class CifarResNet(nn.Module):
     mlp_model = None  # 静态变量，存储唯一的 mlp_model 实例
-
-    def load_model_from_github(self, url):
-        response = requests.get(url)
-        if response.status_code == 200:
-            model_data = BytesIO(response.content)
-            model = MLP()
-            model.load_state_dict(torch.load(model_data))
-            return model
-        else:
-            raise Exception(f"Failed to download model from {url}")
+    mlp_model_url = "https://raw.githubusercontent.com/sdudyl/pytorch-cifar-models/master/pytorch_cifar_models/mlp_model_full.pth"
 
     def __init__(self, block, layers, num_classes=10):
         super(CifarResNet, self).__init__()
@@ -115,13 +90,17 @@ class CifarResNet(nn.Module):
         self.conv1 = conv3x3(3, 16)
         self.bn1 = nn.BatchNorm2d(16)
         self.relu = nn.ReLU(inplace=True)
-        print(222222222222222222222)
-        # 如果静态变量 mlp_model 还没有加载，则加载一次
+
+        # 如果静态变量 mlp_model 还没有加载，则从 URL 加载一次
         if CifarResNet.mlp_model is None:
-            mlp_model_url = 'https://raw.githubusercontent.com/sdudyl/pytorch-cifar-models/master/pytorch_cifar_models/mlp_model.pth'
-            CifarResNet.mlp_model = self.load_model_from_github(mlp_model_url)
-            CifarResNet.mlp_model.eval()  # 设置为评估模式
-        print(333333333333333333)
+            response = requests.get(CifarResNet.mlp_model_url)
+            if response.status_code == 200:
+                model_data = BytesIO(response.content)
+                CifarResNet.mlp_model = torch.load(model_data, map_location=torch.device('cpu'))
+                CifarResNet.mlp_model.eval()  # 设置为评估模式
+            else:
+                raise Exception(f"Failed to download model from {CifarResNet.mlp_model_url}")
+
         self.layer1 = self._make_layer(block, 16, layers[0], mlp_model=CifarResNet.mlp_model)
         self.layer2 = self._make_layer(block, 32, layers[1], stride=2, mlp_model=CifarResNet.mlp_model)
         self.layer3 = self._make_layer(block, 64, layers[2], stride=2, mlp_model=CifarResNet.mlp_model)
@@ -151,7 +130,21 @@ class CifarResNet(nn.Module):
             layers.append(block(self.inplanes, planes, mlp_model=mlp_model))
 
         return nn.Sequential(*layers)
+        
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
 
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+
+        return x
 
 
 def _resnet(
