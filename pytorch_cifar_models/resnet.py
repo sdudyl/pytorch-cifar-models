@@ -53,31 +53,11 @@ class MLP(nn.Module):
         x = torch.relu(self.fc2(x))
         return self.fc3(x)
 
-# 下载 GitHub 上的模型文件并加载
-def load_model_from_github(url):
-    response = requests.get(url)
-    if response.status_code == 200:
-        model_data = BytesIO(response.content)
-        model = MLP()
-        model.load_state_dict(torch.load(model_data))
-        return model
-    else:
-        raise Exception(f"Failed to download model from {url}")
-
-# 初始化模型并加载预训练的权重
-mlp_model = MLP()
-# GitHub 上的模型文件 URL
-mlp_model_url = 'https://raw.githubusercontent.com/sdudyl/pytorch-cifar-models/master/pytorch_cifar_models/mlp_model.pth'  # 替换为实际的 GitHub 文件 URL
-# 加载模型
-mlp_model = load_model_from_github(mlp_model_url)
-mlp_model.eval()  # 设置为评估模式
-
-
 
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None):
+    def __init__(self, inplanes, planes, stride=1, downsample=None, mlp_model=None):
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = nn.BatchNorm2d(planes)
@@ -88,21 +68,7 @@ class BasicBlock(nn.Module):
         self.stride = stride
 
         # 在每个 BasicBlock 实例中加载模型
-        self.mlp_model = BasicBlock.load_mlp_model()
-
-    @staticmethod
-    def load_mlp_model():
-        """加载训练好的 MLP 模型"""
-        mlp_model = MLP()
-        model_url = 'https://raw.githubusercontent.com/sdudyl/pytorch-cifar-models/master/pytorch_cifar_models/mlp_model.pth'
-        response = requests.get(model_url)
-        if response.status_code == 200:
-            model_data = BytesIO(response.content)
-            mlp_model.load_state_dict(torch.load(model_data))
-            mlp_model.eval()  # 设置为评估模式
-            return mlp_model
-        else:
-            raise Exception(f"Failed to download model from {model_url}")
+        self.mlp_model = mlp_model  # 将 MLP 模型作为参数传入
 
 
     def forward(self, x):
@@ -131,6 +97,15 @@ class BasicBlock(nn.Module):
 
 
 class CifarResNet(nn.Module):
+    def load_model_from_github(url):
+    response = requests.get(url)
+    if response.status_code == 200:
+        model_data = BytesIO(response.content)
+        model = MLP()
+        model.load_state_dict(torch.load(model_data))
+        return model
+    else:
+        raise Exception(f"Failed to download model from {url}")
 
     def __init__(self, block, layers, num_classes=10):
         super(CifarResNet, self).__init__()
@@ -139,9 +114,17 @@ class CifarResNet(nn.Module):
         self.bn1 = nn.BatchNorm2d(16)
         self.relu = nn.ReLU(inplace=True)
 
-        self.layer1 = self._make_layer(block, 16, layers[0])
-        self.layer2 = self._make_layer(block, 32, layers[1], stride=2)
-        self.layer3 = self._make_layer(block, 64, layers[2], stride=2)
+        # 初始化模型并加载预训练的权重
+        self.mlp_model = MLP()
+        # GitHub 上的模型文件 URL
+        self.mlp_model_url = 'https://raw.githubusercontent.com/sdudyl/pytorch-cifar-models/master/pytorch_cifar_models/mlp_model.pth'  # 替换为实际的 GitHub 文件 URL
+        # 加载模型
+        self.mlp_model = load_model_from_github(self.mlp_model_url)
+        self.mlp_model.eval()  # 设置为评估模式
+
+        self.layer1 = self._make_layer(block, 16, layers[0],mlp_model=self.mlp_model)
+        self.layer2 = self._make_layer(block, 32, layers[1], stride=2,mlp_model=self.mlp_model)
+        self.layer3 = self._make_layer(block, 64, layers[2], stride=2,mlp_model=self.mlp_model)
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(64 * block.expansion, num_classes)
