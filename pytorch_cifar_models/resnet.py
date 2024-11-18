@@ -1,10 +1,39 @@
-import torch
+'''
+Modified from https://raw.githubusercontent.com/pytorch/vision/v0.9.1/torchvision/models/resnet.py
+
+BSD 3-Clause License
+
+Copyright (c) Soumith Chintala 2016,
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of the copyright holder nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+'''
+
 import sys
 import torch.nn as nn
-import os
-import requests
-from io import BytesIO
-
 try:
     from torch.hub import load_state_dict_from_url
 except ImportError:
@@ -12,7 +41,7 @@ except ImportError:
 
 from functools import partial
 from typing import Dict, Type, Any, Callable, Union, List, Optional
-from torch.hub import load_state_dict_from_url
+
 
 cifar10_pretrained_weight_urls = {
     'resnet20': 'https://github.com/chenyaofo/pytorch-cifar-models/releases/download/resnet/cifar10_resnet20-4118986f.pt',
@@ -38,13 +67,13 @@ def conv1x1(in_planes, out_planes, stride=1):
     """1x1 convolution"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
-print(111111111111111111)
+# counter = Counter()  # 创建计数器实例
 
 
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None, mlp_model=None):
+    def __init__(self, inplanes, planes, stride=1, downsample=None, layer_num=None, block_num=None, counter=None):
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = nn.BatchNorm2d(planes)
@@ -53,36 +82,68 @@ class BasicBlock(nn.Module):
         self.bn2 = nn.BatchNorm2d(planes)
         self.downsample = downsample
         self.stride = stride
-        self.mlp_model = mlp_model
+        self.layer_num = layer_num
+        self.block_num = block_num
+        self.counter = counter 
 
     def forward(self, x):
         identity = x
-
         out = self.conv1(x)
         out = self.bn1(out)
+
+        write_count = self.counter.increment_write()
+        filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
+        with open(filename, "w") as f:
+            f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
+
         out = self.relu(out)
 
-        if self.mlp_model is not None:
-            # Flatten output, pass through MLP, and reshape back
-            out_flat = out.view(out.size(0), -1)
-            out_flat = self.mlp_model(out_flat)
-            out = out_flat.view(out.shape)
+        # 通过 self.counter 访问计数器
+        relu_count = self.counter.increment_relu()
+        filename = f"{self.layer_num}_{self.block_num}_{relu_count}_relu.txt"
+        with open(filename, "w") as f:
+            f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
         out = self.conv2(out)
         out = self.bn2(out)
+
+        # 通过 self.counter 访问计数器
+        write_count = self.counter.increment_write()
+        filename = f"{self.layer_num}_{self.block_num}_{write_count}.txt"
+        with open(filename, "w") as f:
+            f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
         if self.downsample is not None:
             identity = self.downsample(x)
 
         out += identity
         out = self.relu(out)
+        relu_count = self.counter.increment_relu()
+        filename = f"{self.layer_num}_{self.block_num}_{relu_count}_relu.txt"
+        with open(filename, "w") as f:
+            f.write(",".join(f"{value.item():.3f}" for value in out.flatten()))
 
         return out
 
 
 class CifarResNet(nn.Module):
-    mlp_model = None  # 静态变量，存储唯一的 mlp_model 实例
-    mlp_model_url = "https://raw.githubusercontent.com/sdudyl/pytorch-cifar-models/master/pytorch_cifar_models/mlp_model_full.pth"
+
+    class Counter:
+        def __init__(self):
+            self.write_count = 0
+            self.relu_count = 0
+
+        def increment_write(self):
+            self.write_count += 1
+            return self.write_count
+
+        def increment_relu(self):
+            self.relu_count += 1
+            return self.relu_count
+
+        def reset(self):
+            self.write_count = 0
+            self.relu_count = 0
 
     def __init__(self, block, layers, num_classes=10):
         super(CifarResNet, self).__init__()
@@ -91,22 +152,16 @@ class CifarResNet(nn.Module):
         self.bn1 = nn.BatchNorm2d(16)
         self.relu = nn.ReLU(inplace=True)
 
-        # 如果静态变量 mlp_model 还没有加载，则从 URL 加载一次
-        if CifarResNet.mlp_model is None:
-            response = requests.get(CifarResNet.mlp_model_url)
-            if response.status_code == 200:
-                model_data = BytesIO(response.content)
-                # 使用 map_location=device 来确保兼容不同的设备（例如 CPU 或 GPU）
-                CifarResNet.mlp_model = torch.load(model_data, map_location=torch.device('cpu'))
-                CifarResNet.mlp_model.eval()  # 设置为评估模式
-            else:
-                raise Exception(f"Failed to download model from {CifarResNet.mlp_model_url}")
+        # 初始化计数器
+        self.counter = self.Counter()  # 将计数器作为类实例的一个属性
+        print("Counter initialized:", self.counter)
+        #注意先创建counter再make layer！！！
 
-
-        self.layer1 = self._make_layer(block, 16, layers[0], mlp_model=CifarResNet.mlp_model)
-        self.layer2 = self._make_layer(block, 32, layers[1], stride=2, mlp_model=CifarResNet.mlp_model)
-        self.layer3 = self._make_layer(block, 64, layers[2], stride=2, mlp_model=CifarResNet.mlp_model)
-
+        self.layer1 = self._make_layer(block, 16, layers[0], layer_num=1)
+        self.layer2 = self._make_layer(block, 32, layers[1], layer_num=2, stride=2)
+        self.layer3 = self._make_layer(block, 64, layers[2], layer_num=3, stride=2)
+        
+        
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(64 * block.expansion, num_classes)
 
@@ -117,7 +172,11 @@ class CifarResNet(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
-    def _make_layer(self, block, planes, blocks, stride=1, mlp_model=None):
+    def reset_counter(self):
+        self.counter.reset()
+        print("Counter reset successfully")
+
+    def _make_layer(self, block, planes, blocks, layer_num, stride=1):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
@@ -126,27 +185,31 @@ class CifarResNet(nn.Module):
             )
 
         layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample, mlp_model))
+        layers.append(block(self.inplanes, planes, stride, downsample, layer_num=layer_num, block_num=1, counter=self.counter))
         self.inplanes = planes * block.expansion
-        for _ in range(1, blocks):
-            layers.append(block(self.inplanes, planes, mlp_model=mlp_model))
+        for i in range(1, blocks):
+            layers.append(block(self.inplanes, planes, layer_num=layer_num, block_num=i + 1, counter=self.counter))
 
         return nn.Sequential(*layers)
-        
+
     def forward(self, x):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
 
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
+        for i, block in enumerate(self.layer1):
+            x = block(x)
+        for i, block in enumerate(self.layer2):
+            x = block(x)
+        for i, block in enumerate(self.layer3):
+            x = block(x)
 
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
 
         return x
+
 
 
 def _resnet(
